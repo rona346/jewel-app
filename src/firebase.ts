@@ -1,11 +1,20 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, collection, doc, setDoc, getDoc, getDocs, onSnapshot, query, where, orderBy, limit, addDoc, updateDoc, deleteDoc, getDocFromServer } from 'firebase/firestore';
-import firebaseConfig from '../firebase-applet-config.json';
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBWM...",
+  authDomain: "jewelleryapp-dd82e.firebaseapp.com",
+  projectId: "jewelleryapp-dd82e",
+  storageBucket: "jewelleryapp-dd82e.firebasestorage.app",
+  messagingSenderId: "138681038007",
+  appId: "1:138681038007:web:71cd4c4e0c114b4535c932",
+};
 
 const app = initializeApp(firebaseConfig);
+
 export const auth = getAuth(app);
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+export const db = getFirestore(app);
 export const googleProvider = new GoogleAuthProvider();
 
 export { 
