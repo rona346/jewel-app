@@ -1,0 +1,147 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile information and preferences",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Unique user ID" },
+        "email": { "type": "string", "format": "email", "description": "User's email address" },
+        "displayName": { "type": "string", "description": "User's display name" },
+        "photoURL": { "type": "string", "format": "uri", "description": "User's profile photo URL" },
+        "preferences": {
+          "type": "object",
+          "properties": {
+            "metalPreference": { "type": "string" },
+            "budgetRange": { "type": "array", "items": { "type": "number" } },
+            "occasions": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "wishlist": { "type": "array", "items": { "type": "string" }, "description": "List of product IDs in wishlist" },
+        "recentlyViewed": { "type": "array", "items": { "type": "string" }, "description": "List of recently viewed product IDs" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Profile creation timestamp" }
+      },
+      "required": ["uid", "email", "displayName", "photoURL", "wishlist", "recentlyViewed", "createdAt"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "Jewellery product details",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "category": { "type": "string", "enum": ["Rings", "Necklaces", "Earrings", "Bracelets", "Bridal Sets"] },
+        "metalType": { "type": "string", "enum": ["Gold", "Silver", "Platinum"] },
+        "baseWeight": { "type": "number" },
+        "purity": { "type": "string" },
+        "price": { "type": "number" },
+        "makingCharges": { "type": "number" },
+        "images": { "type": "array", "items": { "type": "string" } },
+        "stock": { "type": "number" },
+        "rating": { "type": "number" },
+        "isARSupported": { "type": "boolean" },
+        "arModelUrl": { "type": "string" }
+      },
+      "required": ["id", "name", "description", "category", "metalType", "baseWeight", "purity", "price", "makingCharges", "images", "stock", "rating", "isARSupported"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Customer order details",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "productId": { "type": "string" },
+              "quantity": { "type": "number" },
+              "priceAtPurchase": { "type": "number" }
+            }
+          }
+        },
+        "totalAmount": { "type": "number" },
+        "status": { "type": "string", "enum": ["Processing", "Shipped", "Out for Delivery", "Delivered"] },
+        "trackingUrl": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "items", "totalAmount", "status", "createdAt"]
+    },
+    "GoldScheme": {
+      "title": "GoldScheme",
+      "description": "Gold saving scheme details",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "planName": { "type": "string" },
+        "monthlyInstallment": { "type": "number" },
+        "installmentsPaid": { "type": "number" },
+        "totalBalance": { "type": "number" },
+        "startDate": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["Active", "Completed", "Redeemed"] }
+      },
+      "required": ["id", "userId", "planName", "monthlyInstallment", "installmentsPaid", "totalBalance", "startDate", "status"]
+    },
+    "MetalRates": {
+      "title": "MetalRates",
+      "description": "Current metal rates per gram",
+      "type": "object",
+      "properties": {
+        "gold": { "type": "number" },
+        "silver": { "type": "number" },
+        "platinum": { "type": "number" },
+        "lastUpdated": { "type": "string", "format": "date-time" }
+      },
+      "required": ["gold", "silver", "platinum", "lastUpdated"]
+    },
+    "Cart": {
+      "title": "Cart",
+      "description": "User shopping cart",
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "product": { "$ref": "Product" },
+              "quantity": { "type": "number" },
+              "priceAtAdded": { "type": "number" }
+            }
+          }
+        }
+      },
+      "required": ["items"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profile documents"
+    },
+    "/products/{productId}": {
+      "schema": "Product",
+      "description": "Product catalog"
+    },
+    "/orders/{orderId}": {
+      "schema": "Order",
+      "description": "Customer orders"
+    },
+    "/schemes/{schemeId}": {
+      "schema": "GoldScheme",
+      "description": "User gold schemes"
+    },
+    "/rates/current": {
+      "schema": "MetalRates",
+      "description": "Current metal rates"
+    },
+    "/carts/{userId}": {
+      "schema": "Cart",
+      "description": "User shopping carts"
+    }
+  }
+}

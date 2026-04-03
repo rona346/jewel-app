@@ -1,0 +1,5 @@
+{
+  "name": "Aura Luxury Jewellery",
+  "description": "A premium AI-powered jewellery e-commerce experience with AR try-on, real-time metal rates, and smart recommendations.",
+  "requestFramePermissions": ["camera"]
+}
