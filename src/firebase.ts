@@ -3,10 +3,10 @@ import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChang
 import { getFirestore, collection, doc, setDoc, getDoc, getDocs, onSnapshot, query, where, orderBy, limit, addDoc, updateDoc, deleteDoc, getDocFromServer } from 'firebase/firestore';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyBWM...",
+  apiKey: "AIzaSyBWM-sN2Asp1ZO4yBn2ywG98JJlAkYMBkc",
   authDomain: "jewelleryapp-dd82e.firebaseapp.com",
   projectId: "jewelleryapp-dd82e",
-  storageBucket: "jewelleryapp-dd82e.firebasestorage.app",
+  storageBucket: "ewelleryapp-dd82e.appspot.com",
   messagingSenderId: "138681038007",
   appId: "1:138681038007:web:71cd4c4e0c114b4535c932",
 };
