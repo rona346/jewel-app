@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "motion/react";
 import {
   ShoppingBag,
@@ -15,16 +15,19 @@ import {
 } from "lucide-react";
 import { useCart } from "../context/CartContext";
 import { useAuth } from "../hooks/useAuth";
-import { db, doc, setDoc, collection } from "../firebase";
+import { db, doc, setDoc, collection, getDoc } from "../firebase";
 import { Order } from "../types";
 import { toast } from "sonner";
 
 export default function Checkout() {
   const { items, totalPrice, totalItems, clearCart } = useCart();
-  const { user, login } = useAuth();
+  const { user, loading: authLoading, login } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const orderIdParam = searchParams.get("orderId");
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isFetchingOrder, setIsFetchingOrder] = useState(false);
   const [placedOrder, setPlacedOrder] = useState<Order | null>(null);
 
   // Customer shipping information
@@ -117,6 +120,7 @@ export default function Checkout() {
 
       clearCart();
       setPlacedOrder(newOrder);
+      setSearchParams({ orderId: newOrder.id }, { replace: true });
       toast.success("Order placed successfully! Thank you for choosing Aura.");
     } catch (error) {
       console.error("Order creation failed:", error);
@@ -127,6 +131,79 @@ export default function Checkout() {
       setIsSubmitting(false);
     }
   };
+
+  // Restore order confirmation from Firestore on mount/refresh if orderId is in query params
+  useEffect(() => {
+    if (!orderIdParam) return;
+    if (placedOrder && placedOrder.id === orderIdParam) return;
+
+    if (authLoading) return;
+
+    if (!user) {
+      toast.error("Please sign in to view this order confirmation.");
+      setSearchParams({}, { replace: true });
+      return;
+    }
+
+    let isMounted = true;
+    const fetchOrder = async () => {
+      try {
+        setIsFetchingOrder(true);
+        const orderSnap = await getDoc(doc(db, "orders", orderIdParam));
+
+        if (!isMounted) return;
+
+        if (orderSnap.exists()) {
+          const orderData = orderSnap.data() as Order;
+          // Verify ownership: order must belong to currently authenticated user
+          if (orderData.userId === user.uid) {
+            setPlacedOrder(orderData);
+          } else {
+            toast.error("You do not have permission to view this order.");
+            setSearchParams({}, { replace: true });
+          }
+        } else {
+          toast.error("Order not found.");
+          setSearchParams({}, { replace: true });
+        }
+      } catch (error) {
+        if (!isMounted) return;
+        console.error("Failed to restore order:", error);
+        toast.error("Failed to load order confirmation.");
+        setSearchParams({}, { replace: true });
+      } finally {
+        if (isMounted) {
+          setIsFetchingOrder(false);
+        }
+      }
+    };
+
+    fetchOrder();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [orderIdParam, authLoading, user, placedOrder]);
+
+  // RESTORING ORDER STATE VIEW
+  if (orderIdParam && (authLoading || isFetchingOrder)) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-28 text-center">
+        <div className="w-16 h-16 rounded-full bg-[#D4AF37]/10 border border-[#D4AF37] flex items-center justify-center mx-auto mb-6 text-[#D4AF37]">
+          <div className="w-6 h-6 border-2 border-[#D4AF37] border-t-transparent rounded-full animate-spin" />
+        </div>
+        <span className="text-[10px] uppercase tracking-[0.3em] text-[#D4AF37] font-bold block mb-2">
+          Concierge Services
+        </span>
+        <h1 className="text-3xl font-serif text-white mb-2">
+          Retrieving Your Order
+        </h1>
+        <p className="text-white/50 text-xs font-mono">
+          Verifying acquisition records for #{orderIdParam.slice(0, 8).toUpperCase()}...
+        </p>
+      </div>
+    );
+  }
 
   // SUCCESS STATE VIEW
   if (placedOrder) {
