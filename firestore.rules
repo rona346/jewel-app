@@ -1,0 +1,205 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: userId (UID)
+    // Fields:
+    //   - uid: string (required) - Unique user ID
+    //   - email: string (required, email format) - User's email address
+    //   - displayName: string (required) - User's display name
+    //   - photoURL: string (required, uri format) - User's profile photo URL
+    //   - preferences: map (optional) - User's metal and budget preferences
+    //   - wishlist: list (required) - List of product IDs
+    //   - recentlyViewed: list (required) - List of product IDs
+    //   - createdAt: string (required, ISO 8601) - Profile creation timestamp
+    //
+    // Collection: products
+    // Document ID: productId
+    // Fields:
+    //   - id: string (required)
+    //   - name: string (required)
+    //   - description: string (required)
+    //   - category: string (required, enum)
+    //   - metalType: string (required, enum)
+    //   - baseWeight: number (required)
+    //   - purity: string (required)
+    //   - price: number (required)
+    //   - makingCharges: number (required)
+    //   - images: list (required)
+    //   - stock: number (required)
+    //   - rating: number (required)
+    //   - isARSupported: bool (required)
+    //   - arModelUrl: string (optional)
+    //
+    // Collection: orders
+    // Document ID: orderId
+    // Fields:
+    //   - id: string (required)
+    //   - userId: string (required)
+    //   - items: list (required)
+    //   - totalAmount: number (required)
+    //   - status: string (required, enum)
+    //   - trackingUrl: string (optional)
+    //   - createdAt: string (required, ISO 8601)
+    //
+    // Collection: schemes
+    // Document ID: schemeId
+    // Fields:
+    //   - id: string (required)
+    //   - userId: string (required)
+    //   - planName: string (required)
+    //   - monthlyInstallment: number (required)
+    //   - installmentsPaid: number (required)
+    //   - totalBalance: number (required)
+    //   - startDate: string (required, ISO 8601)
+    //   - status: string (required, enum)
+    //
+    // Collection: rates
+    // Document ID: current
+    // Fields:
+    //   - gold: number (required)
+    //   - silver: number (required)
+    //   - platinum: number (required)
+    //   - lastUpdated: string (required, ISO 8601)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          (request.auth.token.email == "guptaronak810@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidDateString(dateStr) {
+      return dateStr is string && dateStr.matches("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}.*Z?$");
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidUser(data) {
+      return hasRequiredFields(['uid', 'email', 'displayName', 'photoURL', 'wishlist', 'recentlyViewed', 'createdAt']) &&
+             data.uid == request.auth.uid &&
+             isValidEmail(data.email) &&
+             data.displayName is string && data.displayName.size() > 0 && data.displayName.size() < 100 &&
+             data.photoURL is string && data.photoURL.size() < 500 &&
+             data.wishlist is list && data.wishlist.size() <= 100 &&
+             data.recentlyViewed is list && data.recentlyViewed.size() <= 50 &&
+             isValidDateString(data.createdAt);
+    }
+
+    function isValidProduct(data) {
+      return hasRequiredFields(['id', 'name', 'description', 'category', 'metalType', 'baseWeight', 'purity', 'price', 'makingCharges', 'images', 'stock', 'rating', 'isARSupported']) &&
+             data.id is string && data.name is string && data.name.size() < 200 &&
+             data.description is string && data.description.size() < 2000 &&
+             data.category in ['Rings', 'Necklaces', 'Earrings', 'Bracelets', 'Bridal Sets'] &&
+             data.metalType in ['Gold', 'Silver', 'Platinum'] &&
+             data.baseWeight is number && data.baseWeight > 0 &&
+             data.price is number && data.price >= 0 &&
+             data.images is list && data.images.size() <= 10 &&
+             data.stock is number && data.stock >= 0 &&
+             data.rating is number && data.rating >= 0 && data.rating <= 5;
+    }
+
+    function isValidOrder(data) {
+      return hasRequiredFields(['id', 'userId', 'items', 'totalAmount', 'status', 'createdAt']) &&
+             data.id is string && data.userId == request.auth.uid &&
+             data.items is list && data.items.size() > 0 && data.items.size() <= 50 &&
+             data.totalAmount is number && data.totalAmount >= 0 &&
+             data.status in ['Processing', 'Shipped', 'Out for Delivery', 'Delivered'] &&
+             isValidDateString(data.createdAt);
+    }
+
+    function isValidScheme(data) {
+      return hasRequiredFields(['id', 'userId', 'planName', 'monthlyInstallment', 'installmentsPaid', 'totalBalance', 'startDate', 'status']) &&
+             data.id is string && data.userId == request.auth.uid &&
+             data.planName is string && data.planName.size() < 100 &&
+             data.monthlyInstallment is number && data.monthlyInstallment > 0 &&
+             data.installmentsPaid is number && data.installmentsPaid >= 0 &&
+             data.totalBalance is number && data.totalBalance >= 0 &&
+             isValidDateString(data.startDate) &&
+             data.status in ['Active', 'Completed', 'Redeemed'];
+    }
+
+    function isValidRates(data) {
+      return hasRequiredFields(['gold', 'silver', 'platinum', 'lastUpdated']) &&
+             data.gold is number && data.gold > 0 &&
+             data.silver is number && data.silver > 0 &&
+             data.platinum is number && data.platinum > 0 &&
+             isValidDateString(data.lastUpdated);
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) && isValidUser(request.resource.data) && (!('role' in request.resource.data) || request.resource.data.role == 'user');
+      allow update: if isOwner(userId) && isValidUser(request.resource.data) && (request.resource.data.role == resource.data.role || isAdmin());
+    }
+
+    match /products/{productId} {
+      allow read: if true; // Publicly readable catalog
+      allow write: if isAdmin();
+    }
+
+    match /orders/{orderId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && isValidOrder(request.resource.data);
+      allow update: if isAdmin();
+      allow delete: if false;
+    }
+
+    match /schemes/{schemeId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && isValidScheme(request.resource.data);
+      allow update: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin()) && isValidScheme(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /rates/{rateId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /carts/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+  }
+}
